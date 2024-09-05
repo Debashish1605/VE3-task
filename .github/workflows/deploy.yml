@@ -20,20 +20,14 @@ jobs:
       uses: actions/cache@v3
       with:
         path: /tmp/.buildx-cache
-        key: ${ runner.os }-buildx-${ github.sha }
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
         restore-keys: |
-          ${ runner.os }-buildx-
-
-    - name: Set up AWS CLI
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${ secrets.AWS_ACCESS_KEY_ID }
-        aws-secret-access-key: ${ secrets.AWS_SECRET_ACCESS_KEY }
-        aws-region: ap-south-1
+          ${{ runner.os }}-buildx-
 
     - name: Log in to Amazon ECR
-      run: |
-        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 180294178670.dkr.ecr.ap-south-1.amazonaws.com
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry: 180294178670.dkr.ecr.ap-south-1.amazonaws.com
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
@@ -41,6 +35,13 @@ jobs:
         context: .
         push: true
         tags: 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:latest
+
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-south-1
 
     - name: Register ECS Task Definition
       id: register-task
