@@ -42,12 +42,12 @@ jobs:
         push: true
         tags: 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:latest
 
-    - name: Register ECS Task Definition
-      id: register-task
+    - name: Get Task Definition ARN
+      id: get-task-def-arn
       run: |
-        sed -i 's|<IMAGE_URI>|180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:latest|g' ecs-task-definition.json
-        aws ecs register-task-definition --cli-input-json file://ecs-task-definition.json
-
+        TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.taskDefinitionArn' --output text --region ${{ secrets.AWS_REGION }})
+        echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+        
     - name: Update ECS Service
       id: update-service
       run: |
