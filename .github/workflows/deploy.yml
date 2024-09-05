@@ -24,59 +24,37 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildx-
 
-    - name: Configure AWS CLI
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-south-1
-
-    - name: Log in to Amazon ECR
-      run: |
-        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 180294178670.dkr.ecr.ap-south-1.amazonaws.com
-
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
         context: .
         push: true
-        tags: 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:latest
+        tags: ${{ secrets.ECR_REGISTRY }}/my-web-app:latest
+
+    - name: Log in to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registry: ${{ secrets.ECR_REGISTRY }}
+        region: ${{ secrets.AWS_REGION }}
+
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
     - name: Get Task Definition ARN
       id: get-task-def-arn
       run: |
         TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.taskDefinitionArn' --output text --region ${{ secrets.AWS_REGION }})
         echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
-        
+
     - name: Update ECS Service
-      id: update-service
       run: |
-        TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition my-task-definition --query 'taskDefinition.taskDefinitionArn' --output text)
-        aws ecs update-service --cluster my-cluster --service my-service --task-definition $TASK_DEF_ARN
+        aws ecs update-service --cluster my-cluster --service my-service --task-definition ${{ env.TASK_DEF_ARN }} --region ${{ secrets.AWS_REGION }}
 
-    - name: Run Integration Tests
+    - name: Rollback if tests fail
+      if: failure()
       run: |
-        curl -f http://my-service-endpoint/healthcheck || exit 1
-
-    - name: Rollback on Failure
-      if: failure()  # This step only runs if previous steps fail
-      run: |
-        echo "Tests failed, rolling back..."
-
-        # Fetch the previous task definition ARN
-        PREVIOUS_TASK_DEF_ARN=$(aws ecs describe-services \
-          --cluster my-cluster \
-          --services my-service \
-          --query 'services[0].deployments[1].taskDefinition' \
-          --output text)
-          
-        if [ -z "$PREVIOUS_TASK_DEF_ARN" ]; then
-          echo "No previous task definition found. Rollback failed."
-          exit 1
-        fi
-        
-        echo "Rolling back to task definition: $PREVIOUS_TASK_DEF_ARN"
-        aws ecs update-service \
-          --cluster my-cluster \
-          --service my-service \
-          --task-definition $PREVIOUS_TASK_DEF_ARN
+        aws ecs update-service --cluster my-cluster --service my-service --task-definition $(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.revision' --output text --region ${{ secrets.AWS_REGION }} | xargs -I {} echo "my-task-def:{}".+1) --region ${{ secrets.AWS_REGION }}
