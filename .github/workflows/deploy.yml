@@ -25,9 +25,8 @@ jobs:
           ${{ runner.os }}-buildx-
 
     - name: Log in to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
-      with:
-        registry: 180294178670.dkr.ecr.ap-south-1.amazonaws.com
+      run: |
+        aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 180294178670.dkr.ecr.ap-south-1.amazonaws.com
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
