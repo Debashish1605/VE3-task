@@ -3,7 +3,7 @@ name: Deploy to AWS ECS
 on:
   push:
     branches:
-      - main  # Trigger on push to the main branch
+      - main
 
 jobs:
   build-and-deploy:
@@ -24,17 +24,17 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildx-
 
+    - name: Log in to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        region: ${{ secrets.AWS_REGION }}
+
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
         context: .
         push: true
         tags: ${{ secrets.ECR_REGISTRY }}/my-web-app:latest
-
-    - name: Log in to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
-      with:
-        region: ${{ secrets.AWS_REGION }}
 
     - name: Configure AWS CLI
       uses: aws-actions/configure-aws-credentials@v1
@@ -56,11 +56,6 @@ jobs:
     - name: Rollback if tests fail
       if: failure()
       run: |
-        # Fetch the latest task definition revision
         REVISION=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.revision' --output text --region ${{ secrets.AWS_REGION }})
-        
-        # Rollback to the previous revision
         PREVIOUS_REVISION=$((REVISION - 1))
-        
-        # Update ECS service with the previous revision
         aws ecs update-service --cluster my-cluster --service my-service --task-definition my-task-def:${PREVIOUS_REVISION} --region ${{ secrets.AWS_REGION }}
