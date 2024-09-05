@@ -34,7 +34,6 @@ jobs:
     - name: Log in to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v2
       with:
-        registry: ${{ secrets.ECR_REGISTRY }}
         region: ${{ secrets.AWS_REGION }}
 
     - name: Configure AWS CLI
@@ -43,13 +42,12 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ secrets.AWS_REGION }}
-    
-    
-    # - name: Get Task Definition ARN
-    #   id: get-task-def-arn
-    #   run: |
-    #     TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.taskDefinitionArn' --output text --region ${{ secrets.AWS_REGION }})
-    #     echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+
+    - name: Get Task Definition ARN
+      id: get-task-def-arn
+      run: |
+        TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.taskDefinitionArn' --output text --region ${{ secrets.AWS_REGION }})
+        echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
 
     - name: Update ECS Service
       run: |
@@ -58,4 +56,11 @@ jobs:
     - name: Rollback if tests fail
       if: failure()
       run: |
-        aws ecs update-service --cluster my-cluster --service my-service --task-definition $(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.revision' --output text --region ${{ secrets.AWS_REGION }} | xargs -I {} echo "my-task-def:{}".+1) --region ${{ secrets.AWS_REGION }}
+        # Fetch the latest task definition revision
+        REVISION=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.revision' --output text --region ${{ secrets.AWS_REGION }})
+        
+        # Rollback to the previous revision
+        PREVIOUS_REVISION=$((REVISION - 1))
+        
+        # Update ECS service with the previous revision
+        aws ecs update-service --cluster my-cluster --service my-service --task-definition my-task-def:${PREVIOUS_REVISION} --region ${{ secrets.AWS_REGION }}
