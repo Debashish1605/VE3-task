@@ -37,6 +37,8 @@ jobs:
             --family my-task-def \
             --requires-compatibilities FARGATE \
             --network-mode awsvpc \
+            --cpu "256" \
+            --memory "512" \
             --container-definitions "[{\"name\":\"my-web-app\",\"image\":\"180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG\",\"essential\":true,\"memory\":512,\"cpu\":256}]" \
             --query 'taskDefinition.taskDefinitionArn' --output text)
           
