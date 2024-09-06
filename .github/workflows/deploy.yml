@@ -3,71 +3,37 @@ name: Deploy to AWS ECS
 on:
   push:
     branches:
-      - main  # Trigger on push to the main branch
+      - main  # Trigger deployment on push to the 'main' branch
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      # Step 1: Checkout the repository
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+      # Step 2: Log in to Amazon ECR
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          region: ap-south-1
 
-    - name: Cache Docker layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
+      # Step 3: Build the Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.ECR_REGISTRY }}/my-web-app:${{ github.sha }} .
+      
+      # Step 4: Push Docker image to ECR
+      - name: Push Docker image to ECR
+        run: |
+          docker push ${{ secrets.ECR_REGISTRY }}/my-web-app:${{ github.sha }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        push: true
-        tags: ${{ secrets.ECR_REGISTRY }}/my-web-app:latest
-        build-args: |
-          DOCKER_BUILDKIT=1
-        log-level: debug
-
-    - name: Log in to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
-      with:
-        registries: ${{ secrets.ECR_REGISTRY }}
-        registry-type: private
-        skip-logout: false
-
-    - name: Configure AWS CLI
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-
-    - name: Debug Environment
-      run: |
-        echo "AWS_REGION=${{ secrets.AWS_REGION }}"
-        echo "ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}"
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}"
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-
-    - name: Get Task Definition ARN
-      id: get-task-def-arn
-      run: |
-        TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.taskDefinitionArn' --output text --region ${{ secrets.AWS_REGION }})
-        echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
-
-    - name: Update ECS Service
-      run: |
-        aws ecs update-service --cluster my-cluster --service my-service --task-definition ${{ env.TASK_DEF_ARN }} --region ${{ secrets.AWS_REGION }}
-
-    - name: Rollback if tests fail
-      if: failure()
-      run: |
-        PREV_REVISION=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.revision' --output text --region ${{ secrets.AWS_REGION }})
-        NEW_REVISION=$((PREV_REVISION + 1))
-        aws ecs update-service --cluster my-cluster --service my-service --task-definition my-task-def:$NEW_REVISION --region ${{ secrets.AWS_REGION }}
+      # Step 5: Deploy the image to ECS
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service --cluster ${{ secrets.ECS_CLUSTER }} \
+            --service ${{ secrets.ECS_SERVICE }} \
+            --force-new-deployment --region ap-south-1
