@@ -22,3 +22,11 @@ jobs:
       - name: Log in to Amazon ECR
         run: |
           aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 180294178670.dkr.ecr.ap-south-1.amazonaws.com
+
+      - name: Build, Tag, and Push Docker Image
+        run: |
+          IMAGE_TAG=latest
+          $(aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 180294178670.dkr.ecr.<region>.amazonaws.com)
+          docker build -t my-html-app .
+          docker tag my-html-app:latest 180294178670.dkr.ecr.<region>.amazonaws.com/my-html-app:$IMAGE_TAG
+          docker push 180294178670.dkr.ecr.<region>.amazonaws.com/my-html-app:$IMAGE_TAG
