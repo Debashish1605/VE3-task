@@ -14,24 +14,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Log in to Amazon ECR
-      - name: Log in to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+      # Step 2: Configure AWS credentials and region
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          region: ap-south-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-      # Step 3: Build the Docker image
+      # Step 3: Log in to Amazon ECR
+      - name: Log in to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+
+      # Step 4: Build the Docker image
       - name: Build Docker image
         run: |
           docker build -t ${{ secrets.ECR_REGISTRY }}/my-web-app:${{ github.sha }} .
       
-      # Step 4: Push Docker image to ECR
+      # Step 5: Push Docker image to ECR
       - name: Push Docker image to ECR
         run: |
           docker push ${{ secrets.ECR_REGISTRY }}/my-web-app:${{ github.sha }}
 
-      # Step 5: Deploy the image to ECS
+      # Step 6: Deploy the image to ECS
       - name: Deploy to ECS
         run: |
           aws ecs update-service --cluster ${{ secrets.ECS_CLUSTER }} \
