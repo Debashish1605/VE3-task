@@ -27,5 +27,5 @@ jobs:
         run: |
           IMAGE_TAG=latest
           docker build -t my-html-app .
-          docker tag my-html-app:latest 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-html-app:$IMAGE_TAG
-          docker push 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-html-app:$IMAGE_TAG
+          docker tag my-web-app:latest 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG
+          docker push 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG
