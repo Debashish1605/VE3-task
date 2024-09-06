@@ -53,8 +53,10 @@ jobs:
       # Step 8: Run Integration Tests
       - name: Run Integration Tests
         run: |
-          # Add a health check endpoint or use the website URL to verify
-          response=$(curl --write-out '%{http_code}' --silent --output /dev/null http://your-app-url)
+          response=$(curl -v http://your-app-url)
+          echo "Response: $response"
+          http_status=$(curl --write-out '%{http_code}' --silent --output /dev/null http://your-app-url)
+          echo "HTTP Status: $http_status"
           if [ "$response" != "200" ]; then
             echo "Integration tests failed!"
             exit 1
