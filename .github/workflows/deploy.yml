@@ -29,3 +29,15 @@ jobs:
           docker build -t my-web-app .
           docker tag my-web-app:latest 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG
           docker push 180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG
+
+      - name: Deploy to ECS
+        run: |
+          # Register a new ECS task definition
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition my-task-def --query 'taskDefinition.taskDefinitionArn' --output text)
+          NEW_TASK_DEFINITION=$(aws ecs register-task-definition \
+            --family my-task-def \
+            --container-definitions "[{\"name\":\"my-web-app\",\"image\":\"180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG\",\"essential\":true}]" \
+            --query 'taskDefinition.taskDefinitionArn' --output text)
+          
+          # Update the ECS service to use the new task definition
+          aws ecs update-service --cluster my-web-cluster --service my-service --task-definition $NEW_TASK_DEFINITION
