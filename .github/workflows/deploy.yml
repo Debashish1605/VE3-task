@@ -1,45 +1,62 @@
-name: Deploy to AWS ECS with Rollback
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to the 'main' branch
+      - main
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout the repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Configure AWS credentials using OIDC
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: arn:aws:iam::180294178670:role/GitHubActionsECSDeployRole
-          aws-region: ap-south-1
-          role-session-name: GitHubActions
-
-      # Step 3: Log in to Amazon ECR
       - name: Log in to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+        id: ecr_login
+        uses: aws-actions/amazon-ecr-login@v2
 
-      # Step 4: Build the Docker image
       - name: Build Docker image
         run: |
-          docker build -t ${{ secrets.ECR_REGISTRY }}/my-web-app:${{ github.sha }} .
+          docker build -t my-app:latest .
 
-      # Step 5: Push Docker image to ECR
+      - name: Tag Docker image
+        run: |
+          docker tag my-app:latest ${{ steps.ecr_login.outputs.registry }}/my-app:latest
+
       - name: Push Docker image to ECR
         run: |
-          docker push ${{ secrets.ECR_REGISTRY }}/my-web-app:${{ github.sha }}
-          
-      # Step 6: Deploy the image to ECS
+          docker push ${{ steps.ecr_login.outputs.registry }}/my-app:latest
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ecs-task-def.json
+          service: my-ecs-service
+          cluster: my-cluster
+          wait-for-service-stability: true
+
+  integration-test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Integration Tests
         run: |
-          aws ecs update-service --cluster ${{ secrets.ECS_CLUSTER }} \
-            --service ${{ secrets.ECS_SERVICE }} \
-            --force-new-deployment --region ap-south-1
+          curl http://my-app-url/health || exit 1
+
+  rollback:
+    needs: integration-test
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback on ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ecs-task-def.json
+          service: my-ecs-service
+          cluster: my-cluster
+          wait-for-service-stability: true
