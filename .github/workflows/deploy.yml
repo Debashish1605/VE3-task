@@ -39,8 +39,8 @@ jobs:
               --network-mode awsvpc \
               --cpu "256" \
               --memory "512" \
-              --execution-role-arn arn:aws:iam::180294178670:role/ECSExecutionRole \
-              --container-definitions "[{\"name\":\"my-web-app\",\"image\":\"180294178670.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG\",\"essential\":true,\"memory\":512,\"cpu\":256, \"portMappings\": [{\"containerPort\": 80, \"hostPort\": 80, \"protocol\": \"tcp\"}]}]" \
+              --execution-role-arn arn:aws:iam::***:role/ECSExecutionRole \
+              --container-definitions "[{\"name\":\"my-container\",\"image\":\"***.dkr.ecr.ap-south-1.amazonaws.com/my-web-app:$IMAGE_TAG\",\"essential\":true,\"memory\":512,\"cpu\":256, \"portMappings\": [{\"containerPort\": 80, \"hostPort\": 80, \"protocol\": \"tcp\"}]}]" \
               --query 'taskDefinition.taskDefinitionArn' --output text)
         
             # Update the ECS service to use the new task definition
