@@ -43,5 +43,17 @@ jobs:
             --query 'taskDefinition.taskDefinitionArn' --output text)
 
             aws ecs update-service --cluster my-web-cluster --service my-service --task-definition $NEW_TASK_DEFINITION
+          
+      - name: Run Integration Tests
+        run: |
+            # Run your integration tests here, e.g.,
+            curl --silent --fail http://my-web-app-url/healthcheck || exit 1
+
+      - name: Rollback on Failure
+        if: failure()
+        run: |
+              # Retrieve the previous task definition ARN
+              PREVIOUS_TASK_DEFINITION=$(aws ecs describe-services --cluster my-web-cluster --services my-service --query 'services[0].taskDefinition' --output text)
+              aws ecs update-service --cluster my-web-cluster --service my-service --task-definition $PREVIOUS_TASK_DEFINITION
 
         
