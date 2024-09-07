@@ -47,7 +47,7 @@ jobs:
       - name: Run Integration Tests
         run: |
             # Run your integration tests here, e.g.,
-            curl --silent --fail http://my-web-app-url/healthcheck || exit 1
+            curl --silent --fail http://3.110.177.104/healthcheck || exit 1
 
       - name: Rollback on Failure
         if: failure()
