@@ -45,7 +45,7 @@ jobs:
             aws ecs update-service --cluster my-web-cluster --service my-service --task-definition $NEW_TASK_DEFINITION
           
       - name: Integration Test
-        run: curl --silent --fail http://13.233.102.76/healthcheck || exit 1
+        run: curl --silent --fail http://13.233.102.76 || exit 1
 
       - name: Rollback on Failure
         if: failure()
