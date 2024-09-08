@@ -44,10 +44,10 @@ jobs:
 
             aws ecs update-service --cluster my-web-cluster --service my-service --task-definition $NEW_TASK_DEFINITION
           
-      # - name: Run Integration Tests
-      #   run: |
-      #       # Run your integration tests here, e.g.,
-      #       curl --silent --fail http://3.110.177.104/healthcheck || exit 1
+      - name: Run Integration Tests
+        run: |
+            # Run your integration tests here, e.g.,
+            curl --silent --fail http://13.233.102.76/healthcheck || exit 1
 
       - name: Rollback on Failure
         if: failure()
